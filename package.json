@@ -1,0 +1,17 @@
+{
+  "name": "testbroker",
+  "module": "index.js",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prisma": "^5.19.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.1",
+    "aedes": "^0.51.3",
+    "websocket-stream": "^5.5.2"
+  }
+}
