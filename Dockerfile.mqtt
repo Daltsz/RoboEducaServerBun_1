@@ -1,0 +1,32 @@
+# ---------- 1º estágio: builder ----------
+FROM node:18 AS builder
+
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
+
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN bun install
+
+COPY prisma/schema.prisma prisma/
+RUN npx prisma generate
+
+COPY . .
+
+# ---------- 2º estágio: runtime ----------
+FROM node:18-slim
+
+RUN apt-get update -y && apt-get install -y unzip curl
+
+
+ENV BUN_INSTALL="/root/.bun"
+ENV PATH="${BUN_INSTALL}/bin:$PATH"
+ENV NODE_ENV=production
+
+WORKDIR /app
+# Copia o Bun instalado do builder
+COPY --from=builder /root/.bun /root/.bun
+COPY --from=builder /app /app
+
+
+CMD ["/root/.bun/bin/bun", "run", "src/mqtt/serverMqtt.js"]

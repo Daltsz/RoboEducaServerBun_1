@@ -1,29 +1,57 @@
+version: "3.8"
 services:
-  database:
-    image: 'postgres:latest'
+  # 1) Banco de dados -----------------------------------------
+  db:
+    image: postgres:16
+    env_file: .env
     ports:
-      - 5432:5432
-    env_file:
-      - .env
-    networks:
-      - postgres-network
+      - "5432:5432"
     volumes:
-      - ${PWD}/db-data/:/var/lib/postgresql/data/
-      - ${PWD}/init.sql:/docker-entrypoint-initdb.d/init.sql
-  
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   ports:
-  #     - 15433:80
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - database
-  #   networks:
-  #     - postgres-network
-  #   volumes:
-  #     - ${PWD}/pgadmin-data/:/var/lib/pgadmin/
+      - "C:/Users/gabri/OneDrive/Área de Trabalho/Projeto_Robo_Educa/TestBroker/db-data/:/var/lib/postgresql/data/"
+    networks: [postgres-network]
+  # 2) Migrações Prisma (roda uma vez a cada 'up') -------------
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    command: sh -c "/root/.bun/bin/bun install && npx prisma migrate deploy"
+    env_file: .env
+    depends_on: [db]
+    networks: [postgres-network]
 
+  # 3) API Express (endpoints REST) ---------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    env_file: .env
+    depends_on: [db, migrate]
+    networks: [postgres-network]
+    ports:
+      - "3000:3000"
+      - "5555:5555"
+  
+   # 4) Broker MQTT (Aedes) ------------------------------------
+  mqtt-broker:
+    build:
+      context: .
+      dockerfile: Dockerfile.mqtt
+    env_file: .env
+    depends_on: [db, migrate]
+    networks: [postgres-network]
+    ports:
+    # TCP (ESP8266)
+      - "17243:17243"
+    # WebSocket
+      - "8884:8884"    
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    env_file: .env
+    depends_on: [db]
+    networks: [postgres-network]
+    ports:
+      - "8080:80"
 networks: 
   postgres-network:
     driver: bridge

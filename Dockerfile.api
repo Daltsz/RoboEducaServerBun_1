@@ -1,0 +1,37 @@
+# Dockerfile para mqtt-broker com Bun
+
+FROM node:18 AS builder
+RUN apt-get update -y \
+ && apt-get install -y curl unzip \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl -fsSL https://bun.sh/install | bash
+ENV BUN_INSTALL="/root/.bun" \
+    PATH="${BUN_INSTALL}/bin:${PATH}"
+# ENV PATH="/root/.bun/bin:$PATH"
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN export PATH="/root/.bun/bin:$PATH" && bun install
+# Gera o Prisma Client
+COPY prisma/schema.prisma prisma/
+RUN npx prisma generate
+COPY . .
+# ---------- 2º estágio: runtime ----------
+FROM node:18-slim
+
+# instala OpenSSL para que o Prisma funcione
+RUN apt-get update -y \
+ && apt-get install -y openssl curl unzip \
+ && rm -rf /var/lib/apt/lists/*
+
+ 
+RUN curl -fsSL https://bun.sh/install | bash
+ENV BUN_INSTALL="/root/.bun" \
+    PATH="${BUN_INSTALL}/bin:${PATH}" \
+    NODE_ENV=production
+
+WORKDIR /app
+COPY --from=builder /app /app
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]
